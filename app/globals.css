@@ -13,15 +13,78 @@
     --foreground: #ededed;
   }
 }
-
+/* Global Styles */
 body {
-  color: var(--foreground);
-  background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: #f0f2f5; /* Light gray background */
+  font-family: 'Arial', sans-serif; /* Use a clean font */
 }
 
-@layer utilities {
-  .text-balance {
-    text-wrap: balance;
-  }
+/* User List Styles */
+.user-list {
+  border-right: 1px solid #e0e0e0; /* Light border for separation */
+  background-color: white;
+  transition: background-color 0.3s;
+}
+
+/* Online User Item */
+.user-item {
+  padding: 15px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.user-item:hover {
+  background-color: #e8f0fe; /* Light blue on hover */
+}
+
+/* Selected User */
+.selected-user {
+  background-color: #e1f5fe; /* Light blue for selected user */
+  font-weight: bold; /* Make the selected user stand out */
+}
+
+/* Message Styles */
+.message {
+  padding: 10px 15px;
+  border-radius: 20px; /* Rounded corners for message bubbles */
+  max-width: 70%; /* Limit width of messages */
+  margin: 5px 0; /* Space between messages */
+}
+
+.sent-message {
+  background-color: #dcf8c6; /* Light green for sent messages */
+  align-self: flex-end; /* Align sent messages to the right */
+}
+
+.received-message {
+  background-color: #fff; /* White for received messages */
+  align-self: flex-start; /* Align received messages to the left */
+}
+
+/* Input Styles */
+.text-area {
+  width: 100%;
+  border: 1px solid #ccc; /* Light border */
+  border-radius: 20px; /* Rounded corners */
+  padding: 10px;
+  resize: none; /* Disable resizing */
+}
+
+.text-area:focus {
+  border-color: #009688; /* Focus border color */
+}
+
+/* Button Styles */
+.send-button {
+  background-color: #009688; /* Teal color */
+  color: white;
+  border: none;
+  border-radius: 20px; /* Rounded corners */
+  padding: 10px 20px;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+.send-button:hover {
+  background-color: #00796b; /* Darker teal on hover */
 }
