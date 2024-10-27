@@ -19,6 +19,7 @@ import Image from "next/image";
 import Img1 from "../chat/alter.jpeg";
 import "../globals.css";
 
+
 const UserMenu = ({ user, onRename, onDelete, onBlock, onUnblock, onClose, isBlocked }) => {
   return (
     <div className="absolute bg-white border rounded-lg shadow-lg z-10 transition-all duration-300 transform scale-95 hover:scale-100">
@@ -101,39 +102,53 @@ const Chat = () => {
     return () => unsubscribe();
   }, []);
 
-  // Fetch messages when a user is selected
-// Fetch messages when a user is selected
-useEffect(() => {
-  if (selectedUser) {
-    const userChatId = [auth.currentUser.uid, selectedUser.id].sort().join("_");
-
-    const unsubscribeUserChat = onSnapshot(
-      collection(firestore, `chat/${userChatId}/messages`),
-      (snapshot) => {
-        const messagesData = snapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data(),
-        }));
-        
-        // Ensure that timestamp exists before filtering/sorting
-        const filteredMessages = messagesData.filter(
-          (msg) => msg.timestamp && !blockedUsers.has(msg.uid)
-        );
-
-        // Sort messages by timestamp
-        setMessages(
-          filteredMessages.sort((a, b) => a.timestamp.seconds - b.timestamp.seconds)
-        );
-      }
-    );
-
-    return () => unsubscribeUserChat();
-  } else {
-    setMessages([]);
-  }
-}, [selectedUser, blockedUsers]);
-
-
+  useEffect(() => {
+    if (selectedUser) {
+      const userChatId = [auth.currentUser.uid, selectedUser.id].sort().join("_");
+  
+      const unsubscribeUserChat = onSnapshot(
+        collection(firestore, `chat/${userChatId}/messages`),
+        (snapshot) => {
+          const messagesData = snapshot.docs.map((doc) => ({
+            id: doc.id,
+            ...doc.data(),
+          }));
+  
+          // Sort messages by timestamp
+          const sortedMessages = messagesData.sort((a, b) => {
+            const timeA = a.timestamp?.seconds || 0; // Fallback to 0 if timestamp is undefined
+            const timeB = b.timestamp?.seconds || 0;
+            return timeA - timeB; // Ascending order
+          });
+  
+          // Update seen status for the last message and all previous messages from the sender
+          const updateLastMessageSeen = async () => {
+            const lastMessage = sortedMessages[sortedMessages.length - 1];
+            if (lastMessage && lastMessage.uid !== auth.currentUser.uid && !lastMessage.seen) {
+              const messageDocRef = doc(firestore, `chat/${userChatId}/messages`, lastMessage.id);
+              await updateDoc(messageDocRef, { seen: true });
+  
+              // Update all previous messages from the sender to seen
+              const messagesToUpdate = sortedMessages.filter(msg => msg.uid === lastMessage.uid && !msg.seen);
+              for (const msg of messagesToUpdate) {
+                const msgDocRef = doc(firestore, `chat/${userChatId}/messages`, msg.id);
+                await updateDoc(msgDocRef, { seen: true });
+              }
+            }
+          };
+  
+          updateLastMessageSeen(); // Call to update seen status
+          setMessages(sortedMessages);
+        }
+      );
+  
+      return () => unsubscribeUserChat();
+    } else {
+      setMessages([]);
+    }
+  }, [selectedUser]);
+  
+  
   // Scroll to the bottom of the chat whenever messages change
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -141,16 +156,19 @@ useEffect(() => {
 
   // Send a message
   const sendMessage = async () => {
-    if (newMessage.trim() && selectedUser && !blockedUsers.has(selectedUser.id)) {
+    if (newMessage.trim() && selectedUser) {
       const userChatId = [auth.currentUser.uid, selectedUser.id].sort().join("_");
       const messagesCollection = collection(firestore, `chat/${userChatId}/messages`);
-
+  
       try {
-        await addDoc(messagesCollection, {
-          text: newMessage,
-          uid: auth.currentUser.uid,
-          timestamp: serverTimestamp(),
-        });
+       await addDoc(messagesCollection, {
+  text: newMessage,
+  uid: auth.currentUser.uid,
+  timestamp: serverTimestamp(),
+  delivered: true, // Mark as delivered when sent
+  seen: false, // Initially set to false
+});
+
         setNewMessage("");
         inputRef.current.focus();
       } catch (error) {
@@ -158,7 +176,7 @@ useEffect(() => {
       }
     }
   };
-
+  
   // Handle Enter key press
   const handleKeyDown = (e) => {
     if (e.key === "Enter") {
@@ -184,7 +202,7 @@ useEffect(() => {
   const handleDelete = async () => {
     const userChatId = [auth.currentUser.uid, selectedUser.id].sort().join("_");
     const messagesCollectionRef = collection(firestore, `chat/${userChatId}/messages`);
-    
+
     const querySnapshot = await onSnapshot(messagesCollectionRef);
     querySnapshot.docs.forEach(async (doc) => {
       await deleteDoc(doc.ref);
@@ -262,37 +280,50 @@ useEffect(() => {
 
       {/* Chat Section */}
       <div className="flex-1 flex flex-col bg-white">
-        <div className="flex-1 overflow-y-auto p-4">
-          <div className="flex flex-col space-y-4">
-            {messages.map((msg) => (
-              <div key={msg.id} className={`message ${msg.uid === auth.currentUser.uid ? "sent-message" : "received-message"}`}>
-                {msg.text}
-              </div>
-            ))}
-            <div ref={messagesEndRef} />
+        {/* Header Displaying Who You're Chatting With */}
+        {selectedUser && (
+          <div className="p-4 border-b border-gray-300 bg-gray-50">
+            <h3 className="text-lg font-semibold">{selectedUser.name}</h3>
           </div>
-        </div>
-
-       {/* Input Field */}
-<div className="p-2 border-t border-gray-300 bg-gray-50 flex items-center">
-  <textarea
-    ref={inputRef}
-    value={newMessage}
-    onChange={(e) => setNewMessage(e.target.value)}
-    onKeyDown={handleKeyDown}
-    className="flex-grow resize-none border rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-blue-400 transition duration-200"
-    rows={1}
-    placeholder="Type a message..."
-  />
-  <button
-    onClick={sendMessage}
-    className="ml-2 bg-blue-500 text-white rounded-lg px-4 py-2 hover:bg-blue-600 transition duration-200"
-    disabled={!newMessage.trim()} // Disable button if input is empty
-  >
-    Send
-  </button>
+        )}
+        <div className="flex-1 overflow-y-auto p-4">
+        <div className="flex flex-col space-y-4">
+  {messages.map((msg) => (
+    <div key={msg.id} className={`message ${msg.uid === auth.currentUser.uid ? "sent-message" : "received-message"}`}>
+      <div className="flex justify-between items-center">
+        <span>{msg.text}</span>
+        {msg.uid === auth.currentUser.uid && (
+          <span className={`status ${msg.seen ? 'seen' : 'delivered'}`}>
+            {msg.seen ? '✓✓' : '✓'} {/* ✓✓ for seen, ✓ for delivered */}
+          </span>
+        )}
+      </div>
+    </div>
+  ))}
+  <div ref={messagesEndRef} />
 </div>
 
+        </div>
+
+        {/* Input Field */}
+        <div className="p-2 border-t border-gray-300 bg-gray-50 flex items-center">
+          <textarea
+            ref={inputRef}
+            value={newMessage}
+            onChange={(e) => setNewMessage(e.target.value)}
+            onKeyDown={handleKeyDown}
+            className="flex-grow resize-none border rounded-lg p-2 focus:outline-none focus:ring-2 focus:ring-blue-400 transition duration-200"
+            rows={1}
+            placeholder="Type a message..."
+          />
+          <button
+            onClick={sendMessage}
+            className="ml-2 bg-blue-500 text-white rounded-lg px-4 py-2 hover:bg-blue-600 transition duration-200"
+            disabled={!newMessage.trim()} // Disable button if input is empty
+          >
+            Send
+          </button>
+        </div>
       </div>
     </div>
   );
