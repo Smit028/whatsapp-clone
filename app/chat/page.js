@@ -19,7 +19,6 @@ import Image from "next/image";
 import Img1 from "../chat/alter.jpeg";
 import "../globals.css";
 
-
 const UserMenu = ({ user, onRename, onDelete, onBlock, onUnblock, onClose, isBlocked }) => {
   return (
     <div className="absolute bg-white border rounded-lg shadow-lg z-10 transition-all duration-300 transform scale-95 hover:scale-100">
@@ -105,7 +104,7 @@ const Chat = () => {
   useEffect(() => {
     if (selectedUser) {
       const userChatId = [auth.currentUser.uid, selectedUser.id].sort().join("_");
-  
+
       const unsubscribeUserChat = onSnapshot(
         collection(firestore, `chat/${userChatId}/messages`),
         (snapshot) => {
@@ -113,21 +112,21 @@ const Chat = () => {
             id: doc.id,
             ...doc.data(),
           }));
-  
+
           // Sort messages by timestamp
           const sortedMessages = messagesData.sort((a, b) => {
             const timeA = a.timestamp?.seconds || 0; // Fallback to 0 if timestamp is undefined
             const timeB = b.timestamp?.seconds || 0;
             return timeA - timeB; // Ascending order
           });
-  
+
           // Update seen status for the last message and all previous messages from the sender
           const updateLastMessageSeen = async () => {
             const lastMessage = sortedMessages[sortedMessages.length - 1];
             if (lastMessage && lastMessage.uid !== auth.currentUser.uid && !lastMessage.seen) {
               const messageDocRef = doc(firestore, `chat/${userChatId}/messages`, lastMessage.id);
               await updateDoc(messageDocRef, { seen: true });
-  
+
               // Update all previous messages from the sender to seen
               const messagesToUpdate = sortedMessages.filter(msg => msg.uid === lastMessage.uid && !msg.seen);
               for (const msg of messagesToUpdate) {
@@ -136,19 +135,18 @@ const Chat = () => {
               }
             }
           };
-  
+
           updateLastMessageSeen(); // Call to update seen status
           setMessages(sortedMessages);
         }
       );
-  
+
       return () => unsubscribeUserChat();
     } else {
       setMessages([]);
     }
   }, [selectedUser]);
-  
-  
+
   // Scroll to the bottom of the chat whenever messages change
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -159,15 +157,15 @@ const Chat = () => {
     if (newMessage.trim() && selectedUser) {
       const userChatId = [auth.currentUser.uid, selectedUser.id].sort().join("_");
       const messagesCollection = collection(firestore, `chat/${userChatId}/messages`);
-  
+
       try {
-       await addDoc(messagesCollection, {
-  text: newMessage,
-  uid: auth.currentUser.uid,
-  timestamp: serverTimestamp(),
-  delivered: true, // Mark as delivered when sent
-  seen: false, // Initially set to false
-});
+        await addDoc(messagesCollection, {
+          text: newMessage,
+          uid: auth.currentUser.uid,
+          timestamp: serverTimestamp(),
+          delivered: true, // Mark as delivered when sent
+          seen: false, // Initially set to false
+        });
 
         setNewMessage("");
         inputRef.current.focus();
@@ -176,7 +174,7 @@ const Chat = () => {
       }
     }
   };
-  
+
   // Handle Enter key press
   const handleKeyDown = (e) => {
     if (e.key === "Enter") {
@@ -236,6 +234,24 @@ const Chat = () => {
     return blockedUsers.has(userId);
   };
 
+  const getUniqueName = (name, usersList) => {
+    const nameCount = {};
+    
+    // Count occurrences of each name
+    usersList.forEach((user) => {
+      if (user.name === name) {
+        nameCount[name] = (nameCount[name] || 0) + 1;
+      }
+    });
+
+    // If there's more than one occurrence, append a random number
+    if (nameCount[name] > 1) {
+      return `${name} (${Math.floor(Math.random() * 100)})`; // Generate a random number between 0 and 99
+    }
+
+    return name; // Return original name if unique
+  };
+
   return (
     <div className="flex flex-col md:flex-row h-screen bg-gray-100">
       {/* User List Section */}
@@ -254,7 +270,7 @@ const Chat = () => {
                   alt={`${user.name}'s profile`}
                   className="w-8 h-8 rounded-full mr-2"
                 />
-                <span className="mr-2">{user.name}</span>
+                <span className="mr-2">{getUniqueName(user.name, users)}</span> {/* Use the unique name function */}
                 {unreadCounts[user.id] > 0 && (
                   <span className="bg-blue-500 text-white rounded-full px-2 text-xs">{unreadCounts[user.id]}</span>
                 )}
@@ -287,22 +303,21 @@ const Chat = () => {
           </div>
         )}
         <div className="flex-1 overflow-y-auto p-4">
-        <div className="flex flex-col space-y-4">
-  {messages.map((msg) => (
-    <div key={msg.id} className={`message ${msg.uid === auth.currentUser.uid ? "sent-message" : "received-message"}`}>
-      <div className="flex justify-between items-center">
-        <span>{msg.text}</span>
-        {msg.uid === auth.currentUser.uid && (
-          <span className={`status ${msg.seen ? 'seen' : 'delivered'}`}>
-            {msg.seen ? '✓✓' : '✓'} {/* ✓✓ for seen, ✓ for delivered */}
-          </span>
-        )}
-      </div>
-    </div>
-  ))}
-  <div ref={messagesEndRef} />
-</div>
-
+          <div className="flex flex-col space-y-4">
+            {messages.map((msg) => (
+              <div key={msg.id} className={`message ${msg.uid === auth.currentUser.uid ? "sent-message" : "received-message"}`}>
+                <div className="flex justify-between items-center">
+                  <span>{msg.text}</span>
+                  {msg.uid === auth.currentUser.uid && (
+                    <span className={`status ${msg.seen ? 'seen' : 'delivered'}`}>
+                      {msg.seen ? '✓✓' : '✓'} {/* ✓✓ for seen, ✓ for delivered */}
+                    </span>
+                  )}
+                </div>
+              </div>
+            ))}
+            <div ref={messagesEndRef} />
+          </div>
         </div>
 
         {/* Input Field */}
