@@ -1,33 +1,25 @@
-// components/UserList.js
-"use client"
-import { useEffect, useState } from 'react';
-import { collection, getDocs } from 'firebase/firestore';
-import { firestore } from '../firebase/firebase'; // Import firestore
+// UserList.js
+import React from "react";
 
-const UserList = ({ currentUserId, onSelectUser }) => {
-  const [users, setUsers] = useState([]);
-
-  useEffect(() => {
-    const fetchUsers = async () => {
-      const usersCollection = collection(firestore, 'users');
-      const userDocs = await getDocs(usersCollection);
-      const usersData = userDocs.docs
-        .map((doc) => ({ id: doc.id, ...doc.data() }))
-        .filter(user => user.id !== currentUserId); // Exclude current user
-
-      setUsers(usersData);
-    };
-
-    fetchUsers();
-  }, [currentUserId]);
-
+const UserList = ({ users, selectedUser, onUserSelect, unreadCounts }) => {
   return (
-    <div>
-      <h2>Users</h2>
+    <div className="w-full md:w-1/4 border-r border-gray-300 bg-gray-50">
+      <h2 className="p-4 font-semibold text-lg">Users</h2>
       <ul>
-        {users.map(user => (
-          <li key={user.id} onClick={() => onSelectUser(user.id)}>
-            {user.username} {/* Display the username or any other user info */}
+        {users.map((user) => (
+          <li
+            key={user.id}
+            onClick={() => onUserSelect(user)}
+            className={`p-4 cursor-pointer ${
+              selectedUser?.id === user.id ? "bg-blue-100" : "hover:bg-gray-200"
+            }`}
+          >
+            <div className="flex justify-between items-center">
+              <span>{user.name}</span>
+              {unreadCounts[user.id] > 0 && (
+                <span className="text-xs text-red-500">{unreadCounts[user.id]} unread</span>
+              )}
+            </div>
           </li>
         ))}
       </ul>

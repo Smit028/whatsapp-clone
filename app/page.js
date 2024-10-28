@@ -1,35 +1,28 @@
 // pages/_app.js or a separate login component
-"use client"
-import { useEffect } from 'react';
-import { getAuth, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
-import setupUser from './utils/setupUser';
+"use client";
+import { useEffect } from "react";
+import { getAuth, GoogleAuthProvider, signInWithPopup } from "firebase/auth";
+import setupUser from "./utils/setupUser";
 
-const MyApp = () => {
+const Home = () => {
   const auth = getAuth();
 
   const handleLogin = async () => {
     const provider = new GoogleAuthProvider();
     try {
-      const result = await signInWithPopup(auth, provider);
-      const user = result.user;
-
-      // Call setupUser to create the user's document in Firestore
+      const { user } = await signInWithPopup(auth, provider);
       await setupUser(user);
-
-      // Redirect to chat page after successful login
-      window.location.href = '/chat'; // Adjust this as needed for your routing
+      window.location.href = "/chat"; // Adjust this as needed for your routing
     } catch (error) {
-      console.error('Error during login:', error);
+      console.error("Error during login:", error);
     }
   };
 
   useEffect(() => {
-    // Check if the user is already logged in and set up
     const unsubscribe = auth.onAuthStateChanged(async (user) => {
       if (user) {
         await setupUser(user); // Ensure user document is set up
-        // Redirect to chat page
-        window.location.href = '/chat'; // Adjust this as needed for your routing
+        window.location.href = "/chat"; // Adjust this as needed for your routing
       }
     });
 
@@ -44,4 +37,4 @@ const MyApp = () => {
   );
 };
 
-export default MyApp;
+export default Home;
