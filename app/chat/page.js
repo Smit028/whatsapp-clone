@@ -15,6 +15,7 @@ import { useRouter } from "next/navigation";
 import UserList from "../components/UserList";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import "../globals.css";
+import Img1 from "./alter.jpeg";
 
 const Chat = () => {
   const [users, setUsers] = useState([]);
@@ -191,58 +192,73 @@ const Chat = () => {
 
       {selectedUser && (
         <div className="flex-1 flex flex-col bg-white">
-          {/* Chat Header */}
-          <div className="p-4 border-b border-gray-300 bg-gray-50 flex items-center">
-            {window.innerWidth < 768 && (
-              <button
-                onClick={() => setSelectedUser(null)}
-                className="text-blue-500 mr-2"
-              >
-                ← Back
-              </button>
-            )}
-            <h3 className="text-lg font-semibold">{selectedUser.name}</h3>
-          </div>
+       <div className="p-4 border-b border-gray-300 bg-gray-50 flex items-center">
+  {window.innerWidth < 768 && (
+    <button
+      onClick={() => setSelectedUser(null)}
+      className="text-blue-500 mr-2"
+    >
+      ← Back
+    </button>
+  )}
+  
+  {/* Profile Image of Selected User */}
+  <img
+    src={selectedUser.photoURL || Img1} // Use selected user's photo or a default image
+    alt={`${selectedUser.name}'s profile`}
+    className="w-8 h-8 rounded-full mr-3" // Style for the image
+  />
+  
+  <h3 className="text-lg font-semibold">{selectedUser.name}</h3>
+</div>
 
-          {/* Chat Messages with fixed height for scrollable chat area */}
+
           <div className="flex-1 overflow-y-auto bg-gray-50 max-h-[calc(100vh-200px)]">
             <div className="flex flex-col space-y-4 p-4">
-              {messages.map((msg) => (
-                <div
-                  key={msg.id}
-                  className={`p-2 rounded-lg shadow-sm max-w-xs ${
-                    msg.uid === auth.currentUser.uid
-                      ? "bg-blue-500 text-white self-end"
-                      : "bg-gray-200 text-gray-800 self-start"
-                  }`}
-                >
-                  <div className="flex justify-between items-center">
-                    {msg.imageUrl ? (
-                      <img
-                        src={msg.imageUrl}
-                        alt="Sent"
-                        className="rounded-md max-w-full"
-                      />
-                    ) : (
-                      <span>{msg.text}</span>
-                    )}
-                    {msg.uid === auth.currentUser.uid && (
-                      <span
-                        className={`text-xs ml-2 ${
-                          msg.seen ? "text-green-600" : "text-gray-500"
-                        }`}
-                      >
-                        {msg.seen ? "✓✓" : "✓"}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              ))}
+            {messages.map((msg) => {
+  const messageUser = users.find(user => user.id === msg.uid);
+  const messageTime = new Date(msg.timestamp?.seconds * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+  return (
+    <div key={msg.id} className={`flex items-start space-x-3 ${msg.uid === auth.currentUser.uid ? "justify-end" : ""}`}>
+      
+      {/* Message Bubble */}
+      <div
+        className={`p-2 rounded-lg shadow-sm max-w-xs ${
+          msg.uid === auth.currentUser.uid
+            ? "bg-[#dcf8c6] text-black self-end"
+            : "bg-gray-200 text-gray-800 self-start"
+        } flex flex-col`}
+      >
+        {/* Message Content */}
+        <div className="flex-1">
+          {msg.imageUrl ? (
+            <img
+              src={msg.imageUrl}
+              alt="Sent"
+              className="rounded-md mb-1"
+            />
+          ) : (
+            <span className="block mb-1">{msg.text}</span>
+          )}
+        </div>
+
+        {/* Time and Tick (Smaller Size, Bottom Right) */}
+        <div className="flex justify-end items-center space-x-1 text-[10px] text-gray-500">
+          <span>{messageTime}</span>
+          <span className={`ml-1 ${msg.seen ? "text-green-600" : "text-gray-500"}`}>
+            {msg.seen ? "✓✓" : "✓"}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+})}
+
               <div ref={messagesEndRef} />
             </div>
           </div>
 
-          {/* Message Input */}
           <div className="p-2 border-t border-gray-300 bg-gray-50 flex items-center space-x-2">
             <textarea
               ref={inputRef}
@@ -250,7 +266,8 @@ const Chat = () => {
               onChange={(e) => setNewMessage(e.target.value)}
               onKeyDown={handleKeyDown}
               placeholder="Type your message..."
-              className="flex-1 p-2 resize-none bg-gray-200 rounded-lg focus:outline-none focus:ring focus:ring-blue-400"
+              className="flex-1 p-2 border rounded-md resize-none focus:outline-none"
+              rows="1"
             />
             <input
               type="file"
@@ -264,7 +281,7 @@ const Chat = () => {
             </label>
             <button
               onClick={handleSend}
-              className="px-4 py-2 text-white bg-blue-500 rounded-lg hover:bg-blue-600 transition"
+              className="bg-blue-500 hover:bg-blue-600 text-white p-2 rounded-md"
             >
               Send
             </button>

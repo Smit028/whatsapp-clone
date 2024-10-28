@@ -1,10 +1,11 @@
 // UserList.js
 import React from "react";
+import Link from "next/link";
 
 const UserList = ({ users, selectedUser, onUserSelect, unreadCounts }) => {
   return (
     <div className="w-full md:w-1/4 border-r border-gray-300 bg-gray-50">
-      <h2 className="p-4 font-semibold text-lg">Users</h2>
+      <h2 className="p-4 font-semibold text-lg">Users <Link href={"/profile"}><button>Edit Profile</button></Link></h2>
       <ul>
         {users.map((user) => (
           <li
