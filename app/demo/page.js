@@ -1,5 +1,5 @@
 import Head from 'next/head';
-import VoiceCall from '../components/VoiceCall';
+import VoiceCall from './VoiceCall';
 
 export default function Home() {
   return (
