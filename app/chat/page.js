@@ -9,6 +9,7 @@ import {
   updateDoc,
   serverTimestamp,
   getDoc,
+  getDocs
 } from "firebase/firestore";
 import { onAuthStateChanged } from "firebase/auth";
 import { useRouter } from "next/navigation";
@@ -29,6 +30,20 @@ const Chat = () => {
   const inputRef = useRef(null);
   const messagesEndRef = useRef(null);
   const storage = getStorage();
+  
+  // Audio references and flag for send/receive sounds
+  const sendSoundRef = useRef(null);
+  const receiveSoundRef = useRef(null);
+  const isSending = useRef(false);  // Flag to control audio playback
+
+  const handleBeforeUnload = () => {
+    if (currentUser) {
+      updateDoc(doc(firestore, "users", currentUser.id), {
+        status: "offline",
+        lastSeen: serverTimestamp(),
+      });
+    }
+  };
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
@@ -42,21 +57,16 @@ const Chat = () => {
           setCurrentUser({ id: user.uid, ...userDoc.data() });
         }
 
-        window.addEventListener("beforeunload", () => {
-          updateDoc(doc(firestore, "users", user.uid), {
-            status: "offline",
-            lastSeen: serverTimestamp(),
-          });
-        });
-
-        return () =>
-          window.removeEventListener("beforeunload", handleBeforeUnload);
+        window.addEventListener("beforeunload", handleBeforeUnload);
       } else {
         router.push("/auth");
       }
     });
 
-    return () => unsubscribe();
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+      unsubscribe();
+    };
   }, [router]);
 
   useEffect(() => {
@@ -76,9 +86,7 @@ const Chat = () => {
 
   useEffect(() => {
     if (selectedUser) {
-      const userChatId = [auth.currentUser.uid, selectedUser.id]
-        .sort()
-        .join("_");
+      const userChatId = [auth.currentUser.uid, selectedUser.id].sort().join("_");
       const unsubscribeUserChat = onSnapshot(
         collection(firestore, `chat/${userChatId}/messages`),
         (snapshot) => {
@@ -88,16 +96,19 @@ const Chat = () => {
           }));
           setMessages(
             messagesData.sort(
-              (a, b) =>
-                (a.timestamp?.seconds || 0) - (b.timestamp?.seconds || 0)
+              (a, b) => (a.timestamp?.seconds || 0) - (b.timestamp?.seconds || 0)
             )
           );
+          // Play receive sound only if not sending and a new message is received
+          if (messagesData.length > messages.length && receiveSoundRef.current && !isSending.current) {
+            receiveSoundRef.current.play();
+          }
         }
       );
 
       return () => unsubscribeUserChat();
     }
-  }, [selectedUser]);
+  }, [selectedUser, messages.length]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -105,10 +116,9 @@ const Chat = () => {
 
   const sendMessage = async () => {
     if (newMessage.trim() && selectedUser) {
-      const userChatId = [auth.currentUser.uid, selectedUser.id]
-        .sort()
-        .join("_");
+      const userChatId = [auth.currentUser.uid, selectedUser.id].sort().join("_");
       try {
+        isSending.current = true; // Set isSending flag
         await addDoc(collection(firestore, `chat/${userChatId}/messages`), {
           text: newMessage,
           uid: auth.currentUser.uid,
@@ -118,6 +128,13 @@ const Chat = () => {
         });
         setNewMessage("");
         inputRef.current.focus();
+        
+        if (sendSoundRef.current) {
+          sendSoundRef.current.play();
+          sendSoundRef.current.onended = () => {
+            isSending.current = false; // Reset flag when send sound ends
+          };
+        }
       } catch (error) {
         console.error("Error sending message:", error);
       }
@@ -149,17 +166,32 @@ const Chat = () => {
           seen: false,
         });
         setImageFile(null);
+        
+        if (sendSoundRef.current) {
+          sendSoundRef.current.play(); // Play sound on sending image
+        }
       } catch (error) {
         console.error("Error uploading image:", error);
       }
     }
   };
 
-  const handleUserSelect = (user) => {
+  const handleUserSelect = async (user) => {
     setSelectedUser(user);
     setUnreadCounts((prev) => ({ ...prev, [user.id]: 0 }));
+  
+    const userChatId = [auth.currentUser.uid, user.id].sort().join("_");
+    const messagesRef = collection(firestore, `chat/${userChatId}/messages`);
+  
+    const snapshot = await getDocs(messagesRef);
+    snapshot.forEach(async (messageDoc) => {
+      const messageData = messageDoc.data();
+      if (!messageData.seen && messageData.uid !== auth.currentUser.uid) {
+        await updateDoc(messageDoc.ref, { seen: true });
+      }
+    });
   };
-
+  
   const handleKeyDown = (e) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
@@ -180,6 +212,21 @@ const Chat = () => {
 
   return (
     <div className="flex flex-col md:flex-row h-screen max-w-4xl mx-auto shadow-lg bg-gray-100">
+      {/* Audio files for message sounds */}
+      <audio
+        ref={sendSoundRef}
+        src="https://media.memesoundeffects.com/2022/03/WhatsApp-Sending-Message-Sound-Effect.mp3"
+        preload="auto"
+        onError={(e) => console.error("Error loading send sound:", e)}
+      />
+      <audio
+        ref={receiveSoundRef}
+        src="https://sounddino.com/mp3/44/incoming-message-online-whatsapp.mp3"
+        preload="auto"
+        onError={(e) => console.error("Error loading receive sound:", e)}
+      />
+  
+      {/* User list for selecting chat */}
       {(!selectedUser || window.innerWidth >= 768) && (
         <UserList
           users={users}
@@ -187,50 +234,54 @@ const Chat = () => {
           onUserSelect={handleUserSelect}
           unreadCounts={unreadCounts}
           className="w-full md:w-1/3 border-r border-gray-300 bg-white"
+          currentUser={currentUser}
         />
       )}
-
+  
+      {/* Chat area for selected user */}
       {selectedUser && (
         <div className="flex-1 flex flex-col bg-white">
-       <div className="p-4 border-b border-gray-300 bg-gray-50 flex items-center">
-  {window.innerWidth < 768 && (
-    <button
-      onClick={() => setSelectedUser(null)}
-      className="text-blue-500 mr-2"
-    >
-      ← Back
-    </button>
-  )}
+          <div className="p-4 border-b border-gray-300 bg-gray-50 flex items-center">
+            {window.innerWidth < 768 && (
+              <button
+                onClick={() => setSelectedUser(null)}
+                className="text-blue-500 mr-2"
+              >
+                ← Back
+              </button>
+            )}
   
-  {/* Profile Image of Selected User */}
-  <img
-    src={selectedUser.photoURL || Img1} // Use selected user's photo or a default image
-    alt={`${selectedUser.name}'s profile`}
-    className="w-8 h-8 rounded-full mr-3" // Style for the image
-  />
+            {/* Profile Image of Selected User */}
+            <img
+              src={selectedUser.photoURL || Img1} // Use selected user's photo or a default image
+              alt={`${selectedUser.name}'s profile`}
+              className="w-8 h-8 rounded-full mr-3" // Style for the image
+            />
+            <h3 className="text-lg font-semibold">{selectedUser.name}</h3>
+          </div>
   
-  <h3 className="text-lg font-semibold">{selectedUser.name}</h3>
-</div>
-
-
           <div className="flex-1 overflow-y-auto bg-gray-50 max-h-[calc(100vh-200px)]">
             <div className="flex flex-col space-y-4 p-4">
             {messages.map((msg) => {
-  const messageUser = users.find(user => user.id === msg.uid);
-  const messageTime = new Date(msg.timestamp?.seconds * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const messageUser = users.find((user) => user.id === msg.uid);
+  const messageTime = new Date(msg.timestamp?.seconds * 1000).toLocaleTimeString([], {
+    hour: '2-digit',
+    minute: '2-digit',
+  });
 
   return (
-    <div key={msg.id} className={`flex items-start space-x-3 ${msg.uid === auth.currentUser.uid ? "justify-end" : ""}`}>
-      
-      {/* Message Bubble */}
+    <div
+      key={msg.id}
+      className={`flex items-start space-x-3 ${msg.uid === auth.currentUser.uid ? "justify-end" : ""}`}
+    >
       <div
         className={`p-2 rounded-lg shadow-sm max-w-xs ${
           msg.uid === auth.currentUser.uid
             ? "bg-[#dcf8c6] text-black self-end"
             : "bg-gray-200 text-gray-800 self-start"
         } flex flex-col`}
+        style={{ wordWrap: 'break-word', overflowWrap: 'break-word' }} // Allow text wrapping
       >
-        {/* Message Content */}
         <div className="flex-1">
           {msg.imageUrl ? (
             <img
@@ -242,23 +293,24 @@ const Chat = () => {
             <span className="block mb-1">{msg.text}</span>
           )}
         </div>
-
-        {/* Time and Tick (Smaller Size, Bottom Right) */}
         <div className="flex justify-end items-center space-x-1 text-[10px] text-gray-500">
           <span>{messageTime}</span>
-          <span className={`ml-1 ${msg.seen ? "text-green-600" : "text-gray-500"}`}>
-            {msg.seen ? "✓✓" : "✓"}
-          </span>
+          {msg.uid === auth.currentUser.uid && (  // Only show ticks for the sender's messages
+            <span className={`ml-1 ${msg.seen ? "text-green-600" : "text-gray-500"}`}>
+              {msg.seen ? "✓✓" : "✓"}
+            </span>
+          )}
         </div>
       </div>
     </div>
   );
 })}
 
+  
               <div ref={messagesEndRef} />
             </div>
           </div>
-
+  
           <div className="p-2 border-t border-gray-300 bg-gray-50 flex items-center space-x-2">
             <textarea
               ref={inputRef}
