@@ -12,7 +12,7 @@ const Home = () => {
     try {
       const { user } = await signInWithPopup(auth, provider);
       await setupUser(user);
-      window.location.href = "/chat"; // Adjust this as needed for your routing
+      window.location.href = "/final"; // Adjust this as needed for your routing
     } catch (error) {
       console.error("Error during login:", error);
     }
@@ -22,7 +22,7 @@ const Home = () => {
     const unsubscribe = auth.onAuthStateChanged(async (user) => {
       if (user) {
         await setupUser(user); // Ensure user document is set up
-        window.location.href = "/chat"; // Adjust this as needed for your routing
+        window.location.href = "/final"; // Adjust this as needed for your routing
       }
     });
 

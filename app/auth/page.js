@@ -13,7 +13,7 @@ const Auth = () => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user) {
         // Redirect to the chat page if the user is logged in
-        router.push("/chat");
+        router.push("/final");
       }
     });
 
