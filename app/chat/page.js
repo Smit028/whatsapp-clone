@@ -17,6 +17,7 @@ import UserList from "../components/UserList";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import "../globals.css";
 import Img1 from "./alter.jpeg";
+import VoiceCall from "../VoiceCall/VoiceCall";
 
 const Chat = () => {
   const [users, setUsers] = useState([]);
@@ -210,8 +211,30 @@ const Chat = () => {
     await Promise.all([sendMessage(), sendImage()]);
   };
 
+
+
+// voice call
+
+
+const handlevoicecall = () =>{
+  // router.push({
+  //   pathname:"/demo1",
+  //   query: {
+  //     currentUserId: currentUser.id,
+  //     currentUserName: currentUser.name,
+  //     currentUserPhotoURL: currentUser.photoURL,
+  //     chatUserId: users.id,
+  //     chatUserName: users.name,
+  //     chatUserPhotoURL: users.photoURL,
+  //   },
+  // }); 
+  router.push(`/VoiceCall?currentUserId=${currentUser.id}&chatUserId=${selectedUser.id}`)
+}
+
+
+
   return (
-    <div className="flex flex-col md:flex-row h-screen max-w-4xl mx-auto shadow-lg bg-gray-100">
+    <div className="flex flex-col md:flex-row h-full w-full bg-gray-100">
       {/* Audio files for message sounds */}
       <audio
         ref={sendSoundRef}
@@ -239,8 +262,8 @@ const Chat = () => {
       )}
   
       {/* Chat area for selected user */}
-      {selectedUser && (
-        <div className="flex-1 flex flex-col bg-white">
+      {selectedUser && (  
+        <div className="flex-1 flex flex-col back bg-white">
           <div className="p-4 border-b border-gray-300 bg-gray-50 flex items-center">
             {window.innerWidth < 768 && (
               <button
@@ -257,7 +280,7 @@ const Chat = () => {
               alt={`${selectedUser.name}'s profile`}
               className="w-8 h-8 rounded-full mr-3" // Style for the image
             />
-            <h3 className="text-lg font-semibold">{selectedUser.name}</h3>
+            <h3 className="text-lg font-semibold">{selectedUser.name}</h3><button onClick={() => handlevoicecall()}>Call</button>
           </div>
   
           <div className="flex-1 overflow-y-auto bg-gray-50 max-h-[calc(100vh-200px)]">
@@ -340,6 +363,12 @@ const Chat = () => {
           </div>
         </div>
       )}
+         {selectedUser && (
+      <div className="hidden lg:flex flex-col w-1/5 h-full border-l border-gray-300 bg-white p-4">
+        <h3 className="text-lg font-semibold mb-2">Call Controls</h3>
+        <VoiceCall currentUserId={currentUser.id} chatUserId={selectedUser.id} currentUserName={currentUser.name} chatUserName={selectedUser.name} />
+      </div>
+    )}
     </div>
   );
 };

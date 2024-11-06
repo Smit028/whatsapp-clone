@@ -165,8 +165,8 @@ const VoiceCall = () => {
     };
 
     return (
-        <div className="flex flex-col items-center p-5 bg-gray-100 min-h-screen">
-            <h1 className="text-2xl font-bold mb-5">Voice Call Demo</h1>
+        <div className="flex flex-col items-center p-5 bg-white min-h-screen">
+            <h1 className="text-2xl font-bold mb-5 text-green-600">Voice Call Demo</h1>
             <p className="mb-4">Your Peer ID: <strong>{myId}</strong></p>
             <audio ref={localAudioRef} autoPlay muted className="hidden" />
             <audio ref={remoteAudioRef} autoPlay className="hidden" />
@@ -192,17 +192,17 @@ const VoiceCall = () => {
                 }}
                 disabled={!!incomingCall || !!currentCall}
                 className={`mb-4 p-2 rounded-md text-white ${
-                    !!incomingCall || !!currentCall ? "bg-gray-400 cursor-not-allowed" : "bg-blue-500 hover:bg-blue-600"
+                    !!incomingCall || !!currentCall ? "bg-gray-400 cursor-not-allowed" : "bg-green-600 hover:bg-green-700"
                 } transition duration-300`}
             >
                 Start Call
             </button>
 
             {incomingCall && (
-                <div className="mb-4 p-4 border rounded-md shadow-md bg-white">
+                <div className="mb-4 p-4 border rounded-md shadow-md bg-gray-100 w-80">
                     <p className="text-lg font-semibold">Incoming Call from {callerId}...</p>
-                    <div className="mt-2">
-                        <button onClick={pickupCall} className="mr-2 p-2 bg-green-500 text-white rounded-md hover:bg-green-600">
+                    <div className="mt-2 flex justify-between">
+                        <button onClick={pickupCall} className="p-2 bg-green-500 text-white rounded-md hover:bg-green-600">
                             Accept
                         </button>
                         <button onClick={declineCall} className="p-2 bg-red-500 text-white rounded-md hover:bg-red-600">
@@ -213,7 +213,7 @@ const VoiceCall = () => {
             )}
 
             {currentCall && (
-                <div className="mt-4 p-4 border rounded-md shadow-md bg-white">
+                <div className="mt-4 p-4 border rounded-md shadow-md bg-gray-100 w-80">
                     <p className="text-lg font-semibold">Current Call with {currentCall.peer}</p>
                     <button onClick={cutCall} className="mt-2 p-2 bg-red-500 text-white rounded-md hover:bg-red-600">
                         End Call
